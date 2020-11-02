@@ -1,0 +1,8 @@
+Justin:
+	- Set up AWS CLI SAM
+		* add in bcrypt abilities
+	- Figure out how large files are going to be stored
+	- Figure out how to get geolocations of nearby wing places
+		* also ability to launch other app for buying it?
+	- Set up AsyncTask<>
+	- Create file and server I/O abilities for the app
