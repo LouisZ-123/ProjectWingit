@@ -14,3 +14,4 @@
 .cxx
 local.properties
 *__pycache__*
+/lambda/.idea*
