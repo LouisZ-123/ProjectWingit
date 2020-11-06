@@ -118,31 +118,31 @@ def get_cleaned_params(params, *str_list):
             if not validate_email(val):
                 return False, error(ERROR_INVALID_EMAIL, val)
 
-        elif _str == PASSWORD_STR:
-            if len(val) < MIN_PASSWORD_SIZE:
-                return False, error(ERROR_INVALID_PASSWORD,
-                                    "Password must be at least %d characters long" % MIN_PASSWORD_SIZE)
+        elif _str == PASSWORD_HASH_STR:
+            val = val.lower()
+            if len(val) != PASSWORD_HASH_SIZE or not all(c in HASH_CHARS for c in val):
+                return False, error(ERROR_INVALID_PASSWORD_HASH)
 
         ret.append(val)
 
     return tuple(ret)
 
 
-def gen_crypt(password):
+def gen_crypt(password_hash):
     """
     Generates the hash and salt to store in the password_hash in the database
     """
     # Make a random salt using the verification code
     salt = generate_verification_code()
-    return salt + hashlib.sha256(str.encode(password + salt)).hexdigest()
+    return salt + hashlib.sha256(str.encode(password_hash + salt)).hexdigest()
 
 
-def password_correct(password, password_hash):
+def password_correct(password_hash, server_password_hash):
     """
     Returns true if the password matches the given password hash
     """
-    return password_hash[VERIFICATION_CODE_SIZE:] == \
-           hashlib.sha256(str.encode(password + password_hash[:VERIFICATION_CODE_SIZE])).hexdigest()
+    return server_password_hash[VERIFICATION_CODE_SIZE:] == \
+           hashlib.sha256(str.encode(password_hash + server_password_hash[:VERIFICATION_CODE_SIZE])).hexdigest()
 
 
 def get_new_db_conn():

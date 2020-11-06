@@ -2,8 +2,7 @@
 The code that performs the actions specified in lambda_handler
 """
 from lambda_code.utils import *
-from lambda_code.errors import *
-from lambda_code.constants import *
+from lambda_code.s3_utils import *
 
 
 def create_account(params):
@@ -18,10 +17,10 @@ def create_account(params):
         characters will be made as a verification code
     :param params: the parameters
     """
-    all_good, *rest = get_cleaned_params(params, USERNAME_STR, EMAIL_STR, PASSWORD_STR)
+    all_good, *rest = get_cleaned_params(params, USERNAME_STR, EMAIL_STR, PASSWORD_HASH_STR)
     if not all_good:
         return rest[0]
-    username, email, password = rest
+    username, email, password_hash = rest
 
     # All of this is dependant on the SQL database existing and the connection existing,
     #   so we will put it all in a try-catch since things can break easily
@@ -43,8 +42,8 @@ def create_account(params):
 
         # Everything looks good, make the account
         verification_code = generate_verification_code()
-        password_hash = gen_crypt(password)
-        account_info = (username, email, verification_code, current_time(), password_hash)
+        server_password_hash = gen_crypt(password_hash)
+        account_info = (username, email, verification_code, current_time(), server_password_hash)
 
         cursor.execute(CREATE_ACCOUNT_SQL, account_info)
         conn.commit()  # Commit the changes to the database
@@ -102,7 +101,7 @@ def login_account(params):
     username, email = None, None
 
     # Check for email and password
-    all_good, *rest = get_cleaned_params(params, EMAIL_STR, PASSWORD_STR)
+    all_good, *rest = get_cleaned_params(params, EMAIL_STR, PASSWORD_HASH_STR)
 
     # Didn't work, check for username and password
     if not all_good:
@@ -112,18 +111,18 @@ def login_account(params):
             return rest[0]
 
         # Otherwise try and get a username
-        all_good, *rest = get_cleaned_params(params, USERNAME_STR, PASSWORD_STR)
+        all_good, *rest = get_cleaned_params(params, USERNAME_STR, PASSWORD_HASH_STR)
 
         # Didn't work either, return error
         if not all_good:
             return rest[0]
 
         # Otherwise, set username and password
-        username, password = rest
+        username, password_hash = rest
 
     # It did work, set email and password
     else:
-        email, password = rest
+        email, password_hash = rest
 
     try:
         conn = get_new_db_conn()
@@ -147,10 +146,39 @@ def login_account(params):
             return error(ERROR_ACCOUNT_UNVERIFIED)
 
         # If the password_hash does not match, tell them
-        if not password_correct(password, result[PASSWORD_HASH_STR]):
+        if not password_correct(password_hash, result[PASSWORD_HASH_STR]):
             return error(ERROR_INCORRECT_PASSWORD)
 
         return return_message(good_message='Credentials Accepted!')
 
     except Exception as e:
         return error(ERROR_UNKNOWN_ERROR, repr(e))
+
+
+def get_s3_permissions(params):
+    """
+    Gets a presigned url for an s3 bucket so a user can upload a file
+    """
+    # Make sure we have correct params
+    all_good, *rest = get_cleaned_params(params, USERNAME_STR, PASSWORD_HASH_STR, S3_REASON_STR)
+    if not all_good:
+        return rest[0]
+    username, password_hash, reason = rest
+
+    # Attempt to login with the given credentials, and if it fails, return the login error
+    login_attempt = login_account(params)
+    if RETURN_ERROR_MESSAGE_STR in eval(login_attempt['body']).keys():
+        return login_attempt
+    
+    # It worked, so now we need to build the extra info for the return message
+    all_good, extra_s3_info = get_extra_s3_info(username, reason)
+    if not all_good:
+        return extra_s3_info
+
+    if reason == S3_REASON_UPLOAD_USER_PROFILE_IMAGE:
+        all_good, ret = create_presigned_post(extra_s3_info[S3_IMAGE_DEST_STR])
+    else:
+        return error(ERROR_IMPOSSIBLE_ERROR, "get_s3_permissions (reason should already be good now because "
+                                             "get_extra_s3_info should have checked it)")
+
+    return ret if not all_good else return_message(data=ret)

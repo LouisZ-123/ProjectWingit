@@ -4,8 +4,11 @@ Utility functions
 import requests
 import random
 import string
+import urllib.parse
 from lambda_code.lambda_function import lambda_handler
-from lambda_code.constants import MIN_PASSWORD_SIZE, MAX_USERNAME_SIZE
+from lambda_code.constants import MAX_USERNAME_SIZE, GET_REQUEST_STR, POST_REQUEST_STR, HTTP_METHOD_STR, \
+    PASSWORD_HASH_SIZE, HASH_CHARS
+from BuildConstants import IMPLEMENTED_HTTP_METHODS
 
 _REQUEST_URL = "https://mvmb9qdwti.execute-api.us-west-1.amazonaws.com/WingitProduction/wingitresource"
 _HEX_CHARS = "0123456789abcdefABCDEF"
@@ -28,14 +31,33 @@ def request(**params):
     :param params: a kwargs list of params
     :return: the response from the server
     """
+    http_method = params[HTTP_METHOD_STR]
+
     if REQUEST_TYPE_ONLINE:
-        response = requests.get(_REQUEST_URL, params=params).json()
+        if http_method == GET_REQUEST_STR:
+            response = requests.get(_REQUEST_URL, params=params).json()
+        elif http_method == POST_REQUEST_STR:
+            response = requests.post(_REQUEST_URL, data=params).json()
+        elif http_method == 'HEAD':
+            response = requests.head(_REQUEST_URL)
+        else:
+            raise ValueError("Unknown request type: %s, not in %s" % (http_method, IMPLEMENTED_HTTP_METHODS))
+
         if 'message' in response:
             raise ValueError("Internal server error with params: %s\nOutput: %s" % (params, response))
         return response
     else:
+        if http_method == GET_REQUEST_STR:
+            d = {HTTP_METHOD_STR: GET_REQUEST_STR, 'queryStringParameters': params}
+        elif http_method == POST_REQUEST_STR:
+            d = {HTTP_METHOD_STR: POST_REQUEST_STR, 'body': urllib.parse.urlencode(params)}
+        elif http_method == 'HEAD':
+            d = {HTTP_METHOD_STR: 'HEAD'}
+        else:
+            raise ValueError("Unknown request type: %s, not in %s" % (http_method, IMPLEMENTED_HTTP_METHODS))
+
         # The return body is a string (because json.dumps) so we must call eval on it
-        return eval(lambda_handler({'queryStringParameters': params}, None)['body'])
+        return eval(lambda_handler(d, None)['body'])
 
 
 def random_str(size, all_ascii=True):
@@ -48,11 +70,11 @@ def random_str(size, all_ascii=True):
         (random.choice(string.ascii_letters) if all_ascii else chr(random.randint(0, 255))) for i in range(size))
 
 
-def random_valid_password():
+def random_valid_password_hash():
     """
     Generates a random password that passes validity checks on the server
     """
-    return random_str(MIN_PASSWORD_SIZE + random.randint(0, 5 * MIN_PASSWORD_SIZE), all_ascii=True)
+    return ''.join(random.choice(HASH_CHARS) for i in range(PASSWORD_HASH_SIZE))
 
 
 def random_valid_username():

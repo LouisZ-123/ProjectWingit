@@ -4,6 +4,7 @@ Test cases for the lambda API
 from tests.LambdaTestUtils import *
 from lambda_code.errors import *
 from BuildConstants import *
+from lambda_code.s3_utils import *
 
 
 class TestLambda:
@@ -30,14 +31,12 @@ class TestLambda:
             raise ValueError('%s != %s:\n %s' % (a, b, message))
 
     @staticmethod
-    def _cpy_params(params, error_tup, param_str):
+    def _cpy_params(params, error_tup):
         """
         Copies and updates the params input for a few tests that need it
         """
         _params = params.copy()
         _params['error_tup'] = error_tup
-        if param_str in _params:
-            del _params[param_str]
         return _params
 
     def assert_no_server_error(self, **params):
@@ -66,7 +65,7 @@ class TestLambda:
         """
         Asserts the server knows how to handle bad usernames no matter the event that is using them
         """
-        _params = self._cpy_params(params, ERROR_INVALID_USERNAME, USERNAME_STR)
+        _params = self._cpy_params(params, ERROR_INVALID_USERNAME)
 
         # Incorrect size
         _params[USERNAME_STR] = ''
@@ -95,7 +94,7 @@ class TestLambda:
         """
         Asserts the server knows how to handle bad emails no matter the event that is using them
         """
-        _params = self._cpy_params(params, ERROR_INVALID_EMAIL, EMAIL_STR)
+        _params = self._cpy_params(params, ERROR_INVALID_EMAIL)
 
         # Doesn't have @
         _params[EMAIL_STR] = ""
@@ -122,18 +121,35 @@ class TestLambda:
         _params[EMAIL_STR] = "good@gmail..com"
         self.assert_server_error(**_params)
 
-    def assert_server_handles_bad_password(self, **params):
+    def assert_server_handles_bad_password_hash(self, **params):
         """
         Asserts the server knows how to handle bad passwords
         """
-        _params = self._cpy_params(params, ERROR_INVALID_PASSWORD, PASSWORD_STR)
+        _params = self._cpy_params(params, ERROR_INVALID_PASSWORD_HASH)
 
-        # Password too small/empty
-        _params[PASSWORD_STR] = ''
+        # Not right size
+        _params[PASSWORD_HASH_STR] = ''
         self.assert_server_error(**_params)
 
-        _params[PASSWORD_STR] = random_str(MIN_PASSWORD_SIZE - 1, all_ascii=False)
+        _params[PASSWORD_HASH_STR] = random_valid_password_hash()[:-1]
         self.assert_server_error(**_params)
+
+        # Bad chars
+        _params[PASSWORD_HASH_STR] = random_valid_password_hash()[:-1] + 'g'
+        self.assert_server_error(**_params)
+
+        _params[PASSWORD_HASH_STR] = random_str(PASSWORD_HASH_SIZE, all_ascii=False)
+        self.assert_server_error(**_params)
+
+    def assert_server_handles_bad_http_method(self, **params):
+        """
+        Asserts the server knows how to handle bad http methods
+        """
+        _params = self._cpy_params(params, ERROR_UNKNOWN_EVENT_TYPE)
+
+        for http_method in [h for h in IMPLEMENTED_HTTP_METHODS if h != _params[HTTP_METHOD_STR]]:
+            _params[HTTP_METHOD_STR] = http_method
+            self.assert_server_error(**_params)
 
     def assert_server_handles_invalid_inputs(self, **params):
         """
@@ -143,26 +159,29 @@ class TestLambda:
         # Check not enough/correct args
         self.assert_server_missing_params(**params)
 
+        # Check that it handles full request but wrong http method
+        self.assert_server_handles_bad_http_method(**params)
+
         # Check invalid individual args
         if USERNAME_STR in params:
             self.assert_server_handles_bad_username(**params)
         if EMAIL_STR in params:
             self.assert_server_handles_bad_email(**params)
-        if PASSWORD_STR in params:
-            self.assert_server_handles_bad_password(**params)
+        if PASSWORD_HASH_STR in params:
+            self.assert_server_handles_bad_password_hash(**params)
 
     def assert_server_missing_params(self, **params):
         """
         Switches through permutations of missing parameters to make sure the server only accepts if all params
             are accounted for. Assumes error_code: 'ERROR_MISSING_PARAMS'
         """
-        keys = [k for k in params.keys() if k != EVENT_TYPE_STR]
+        keys = [k for k in params.keys() if k != EVENT_TYPE_STR and k != HTTP_METHOD_STR]
 
         # Go through every permutation using binary (except the last one because that should work)
         for s in get_binary_permutations(len(keys))[:-1]:
             # Get all the params that have a '1' in their index
             curr_params = {keys[i]: params[keys[i]] for i, b in enumerate(s) if b == '1'}
-            curr_params[EVENT_TYPE_STR] = params[EVENT_TYPE_STR]
+            curr_params.update({EVENT_TYPE_STR: params[EVENT_TYPE_STR], HTTP_METHOD_STR: params[HTTP_METHOD_STR]})
             self.assert_server_error(error_tup=ERROR_MISSING_PARAMS, **curr_params)
 
     def test_account_creation_fails(self):
@@ -171,13 +190,14 @@ class TestLambda:
         """
 
         # The full set of parameters that could theoretically pass invalid checks
-        password = random_valid_password()
+        password = random_valid_password_hash()
         username = random_valid_username()
         params = {
             EVENT_TYPE_STR: EVENT_CREATE_ACCOUNT_STR,
             USERNAME_STR: username,
             EMAIL_STR: random_valid_email(),
-            PASSWORD_STR: password
+            PASSWORD_HASH_STR: password,
+            HTTP_METHOD_STR: POST_REQUEST_STR
         }
 
         # Check inputs are missing/invalid
@@ -218,7 +238,8 @@ class TestLambda:
         params = {
             EVENT_TYPE_STR: EVENT_LOGIN_STR,
             EMAIL_STR: random_valid_email(),
-            PASSWORD_STR: random_valid_password()
+            PASSWORD_HASH_STR: random_valid_password_hash(),
+            HTTP_METHOD_STR: GET_REQUEST_STR
         }
 
         # Check not enough/correct args for both username and email
@@ -230,52 +251,79 @@ class TestLambda:
 
         # Check incorrect username/email, but a functional password
         params = {EVENT_TYPE_STR: EVENT_LOGIN_STR, 'error_tup': ERROR_USERNAME_DOES_NOT_EXIST,
-                  PASSWORD_STR: TEST_ACCOUNT_PASSWORD, USERNAME_STR: random_valid_username()}
+                  PASSWORD_HASH_STR: TEST_ACCOUNT_PASSWORD_HASH, USERNAME_STR: random_valid_username(),
+                  HTTP_METHOD_STR: GET_REQUEST_STR}
         self.assert_server_error(**params)
 
         params = {EVENT_TYPE_STR: EVENT_LOGIN_STR, 'error_tup': ERROR_EMAIL_DOES_NOT_EXIST,
-                  PASSWORD_STR: TEST_ACCOUNT_PASSWORD, EMAIL_STR: random_valid_email()}
+                  PASSWORD_HASH_STR: TEST_ACCOUNT_PASSWORD_HASH, EMAIL_STR: random_valid_email(),
+                  HTTP_METHOD_STR: GET_REQUEST_STR}
         self.assert_server_error(**params)
 
         # Check correct username/email, but wrong password
         params = {EVENT_TYPE_STR: EVENT_LOGIN_STR, 'error_tup': ERROR_INCORRECT_PASSWORD,
-                  PASSWORD_STR: random_valid_password(), USERNAME_STR: TEST_ACCOUNT_VERIFIED_USERNAME}
+                  PASSWORD_HASH_STR: random_valid_password_hash(), USERNAME_STR: TEST_ACCOUNT_VERIFIED_USERNAME,
+                  HTTP_METHOD_STR: GET_REQUEST_STR}
         self.assert_server_error(**params)
 
         params = {EVENT_TYPE_STR: EVENT_LOGIN_STR, 'error_tup': ERROR_INCORRECT_PASSWORD,
-                  PASSWORD_STR: random_valid_password(), EMAIL_STR: TEST_ACCOUNT_VERIFIED_EMAIL}
+                  PASSWORD_HASH_STR: random_valid_password_hash(), EMAIL_STR: TEST_ACCOUNT_VERIFIED_EMAIL,
+                  HTTP_METHOD_STR: GET_REQUEST_STR}
         self.assert_server_error(**params)
 
         # Check correct everything, but an unverified account
         params = {EVENT_TYPE_STR: EVENT_LOGIN_STR, 'error_tup': ERROR_ACCOUNT_UNVERIFIED,
-                  PASSWORD_STR: TEST_ACCOUNT_PASSWORD, EMAIL_STR: TEST_ACCOUNT_UNVERIFIED_EMAIL}
+                  PASSWORD_HASH_STR: TEST_ACCOUNT_PASSWORD_HASH, EMAIL_STR: TEST_ACCOUNT_UNVERIFIED_EMAIL,
+                  HTTP_METHOD_STR: GET_REQUEST_STR}
         self.assert_server_error(**params)
 
         params = {EVENT_TYPE_STR: EVENT_LOGIN_STR, 'error_tup': ERROR_ACCOUNT_UNVERIFIED,
-                  PASSWORD_STR: TEST_ACCOUNT_PASSWORD, USERNAME_STR: TEST_ACCOUNT_UNVERIFIED_USERNAME}
+                  PASSWORD_HASH_STR: TEST_ACCOUNT_PASSWORD_HASH, USERNAME_STR: TEST_ACCOUNT_UNVERIFIED_USERNAME,
+                  HTTP_METHOD_STR: GET_REQUEST_STR}
         self.assert_server_error(**params)
 
         # Check logging in with email and username both work
-        params = {EVENT_TYPE_STR: EVENT_LOGIN_STR, PASSWORD_STR: TEST_ACCOUNT_PASSWORD,
-                  EMAIL_STR: TEST_ACCOUNT_VERIFIED_EMAIL}
+        params = {EVENT_TYPE_STR: EVENT_LOGIN_STR, PASSWORD_HASH_STR: TEST_ACCOUNT_PASSWORD_HASH,
+                  EMAIL_STR: TEST_ACCOUNT_VERIFIED_EMAIL, HTTP_METHOD_STR: GET_REQUEST_STR}
         self.assert_no_server_error(**params)
 
-        params = {EVENT_TYPE_STR: EVENT_LOGIN_STR, PASSWORD_STR: TEST_ACCOUNT_PASSWORD,
-                  USERNAME_STR: TEST_ACCOUNT_VERIFIED_USERNAME}
+        params = {EVENT_TYPE_STR: EVENT_LOGIN_STR, PASSWORD_HASH_STR: TEST_ACCOUNT_PASSWORD_HASH,
+                  USERNAME_STR: TEST_ACCOUNT_VERIFIED_USERNAME, HTTP_METHOD_STR: GET_REQUEST_STR}
         self.assert_no_server_error(**params)
+
+        # Check logging in with password_hash that has caps works
+        params = {EVENT_TYPE_STR: EVENT_LOGIN_STR, PASSWORD_HASH_STR: TEST_ACCOUNT_PASSWORD_HASH.upper(),
+                  USERNAME_STR: TEST_ACCOUNT_VERIFIED_USERNAME, HTTP_METHOD_STR: GET_REQUEST_STR}
+        self.assert_no_server_error(**params)
+
+    def test_s3_presigned_url(self):
+        """
+        Test get_s3_presigned_url for various reasons
+        """
+        params = {
+            EVENT_TYPE_STR: EVENT_GET_S3_URL_STR,
+            USERNAME_STR: TEST_ACCOUNT_VERIFIED_USERNAME,
+            PASSWORD_HASH_STR: TEST_ACCOUNT_PASSWORD_HASH,
+            HTTP_METHOD_STR: GET_REQUEST_STR,
+            S3_REASON_STR: S3_REASON_UPLOAD_USER_PROFILE_IMAGE,
+        }
+
+        self.assert_server_handles_invalid_inputs(**params)
 
     def test_misc(self):
         """
         Test miscellaneous things
         """
-        # Check that there is an error if there is no event_type in params,
+        # Check that there is an error if there is no event_type in params all http methods,
         #   even if all other params are sent for a function
-        params = {'error_tup': ERROR_NO_EVENT_TYPE, USERNAME_STR: 'a', EMAIL_STR: 'a@b.c'}
-        self.assert_server_error(**params)
+        for s in IMPLEMENTED_HTTP_METHODS:
+            info = {'error_tup': ERROR_NO_EVENT_TYPE, USERNAME_STR: 'a', EMAIL_STR: 'a@b.c',
+                      HTTP_METHOD_STR: s}
+            self.assert_server_error(**info)
 
-        # Error if an unknown event type is passed
-        params = {'error_tup': ERROR_UNKNOWN_EVENT_TYPE, EVENT_TYPE_STR: "uhfn01q7hrn0dfq9und-q"}
-        self.assert_server_error(**params)
+            # Error if an unknown event type is passed for both get and post
+            info.update({'error_tup': ERROR_UNKNOWN_EVENT_TYPE, EVENT_TYPE_STR: "uhfn01q7hrn0dfq9und-q"})
+            self.assert_server_error(**info)
 
     def test_all(self):
         """

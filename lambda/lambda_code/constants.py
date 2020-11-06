@@ -18,9 +18,13 @@ RETURN_ERROR_MESSAGE_STR = 'error_message'  # The error message
 RETURN_ERROR_CODE_STR = 'error_code'  # The error code
 
 EVENT_TYPE_STR = 'event_type'
+HTTP_METHOD_STR = 'httpMethod'
+GET_REQUEST_STR = 'GET'
+POST_REQUEST_STR = 'POST'
 EVENT_CREATE_ACCOUNT_STR = 'create_account'
 EVENT_VERIFY_ACCOUNT_STR = 'verify_account'
 EVENT_LOGIN_STR = 'login'
+EVENT_GET_S3_URL_STR = 'get_s3'
 
 VERIFICATION_CODE_SIZE = 30  # The number of characters to use in the verification code
 VERIFICATION_LINK = "{0}?event_type=verify_account&username=%s&verification_code=%s".format(API_LINK)
@@ -43,7 +47,8 @@ GMAIL_USER = "cse110wingit@gmail.com"
 GMAIL_PASSWORD = 'teamWINGIT!'
 
 MAX_USERNAME_SIZE = 64  # Max size for a username
-MIN_PASSWORD_SIZE = 8  # Minimum password size
+PASSWORD_HASH_SIZE = 64  # Size of a sha256 hash in chars
+HASH_CHARS = "abcdef0123456789"  # The chars that could exist in a sha256 has (lowercase)
 
 
 ################
@@ -58,12 +63,12 @@ RDS_PASSWORD = "teamWINGIT!"
 RDS_DATABASE = "wingitdb"
 
 USERS_TABLE_NAME = 'USERS'  # The SQL table name for users
-PASSWORD_STR = 'password'  # The string for describing a user's password (not the password_hash stored in db)
 PASSWORD_HASH_STR = 'password_hash'  # Password_hash name on database
 USERNAME_STR = 'username'  # I think you get the point now
 VERIFICATION_CODE_STR = 'verification_code'
 EMAIL_STR = 'email'
 CREATION_TIME_STR = 'creation_time'
+S3_REASON_STR = 's3_reason'
 
 # Create the user account
 CREATE_ACCOUNT_SQL = "INSERT INTO {0} ({1}, {2}, {3}, {4}, {5}) VALUES (%s, %s, %s, %s, %s)" \

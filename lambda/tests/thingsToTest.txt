@@ -1,2 +1,3 @@
 salting works
 create account all works (must implement delete account first)
+getting s3 bucket url
