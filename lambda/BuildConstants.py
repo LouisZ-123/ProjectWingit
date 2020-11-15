@@ -73,7 +73,7 @@ JAVA_CONSTANTS_FILE_DATA = """package %(package)s;
  */
 
 public class %(classname)s {
-    public static final String API_LINK = "%(API_LINK)s";
+    public static final String API_URL = "%(API_URL)s";
     public static final String RETURN_SUCCESS_STR = "%(RETURN_SUCCESS_STR)s";
     public static final String RETURN_GOOD_MESSAGE_STR = "%(RETURN_GOOD_MESSAGE_STR)s";
     public static final String RETURN_ERROR_MESSAGE_STR = "%(RETURN_ERROR_MESSAGE_STR)s";
@@ -88,7 +88,7 @@ public class %(classname)s {
 """ % {
     'package': JAVA_PACKAGE_PATH,
     'classname': JAVA_CONSTANTS_CLASS_NAME,
-    'API_LINK': API_LINK,
+    'API_URL': API_URL,
     'RETURN_SUCCESS_STR': RETURN_SUCCESS_STR,
     'RETURN_GOOD_MESSAGE_STR': RETURN_GOOD_MESSAGE_STR,
     'RETURN_ERROR_MESSAGE_STR': RETURN_ERROR_MESSAGE_STR,
@@ -107,4 +107,4 @@ public class %(classname)s {
 ###############
 
 
-IMPLEMENTED_HTTP_METHODS = [GET_REQUEST_STR, POST_REQUEST_STR]
+IMPLEMENTED_HTTP_METHODS = [GET_REQUEST_STR, POST_REQUEST_STR, DELETE_REQUEST_STR]

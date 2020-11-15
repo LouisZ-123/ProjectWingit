@@ -5,7 +5,7 @@ package com.wingit.projectwingit.utils;
  */
 
 public class WingitLambdaConstants {
-    public static final String API_LINK = "https://mvmb9qdwti.execute-api.us-west-1.amazonaws.com/WingitProduction/wingitresource";
+    public static final String API_URL = "https://mvmb9qdwti.execute-api.us-west-1.amazonaws.com/WingitProduction/wingitresource";
     public static final String RETURN_SUCCESS_STR = "success";
     public static final String RETURN_GOOD_MESSAGE_STR = "info";
     public static final String RETURN_ERROR_MESSAGE_STR = "error_message";

@@ -24,7 +24,7 @@ import sys
 _LAMBDA_CODE_DIR = 'lambda_code'
 _LAMBDA_IGNORE = [r'.*dist-info.*']
 
-_REBUILD_DB = False  # So I don't have to keep changing build args
+_REBUILD_DB = True  # So I don't have to keep changing build args
 
 
 def build_prechecks():

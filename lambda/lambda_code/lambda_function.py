@@ -6,7 +6,7 @@ import urllib.parse
 def lambda_handler(event, context):
     """
     The main function that is called for every request.
-    :param event: the incomming parameters
+    :param event: the incoming parameters
     :param context: the current context
         See info for context here: https://docs.aws.amazon.com/lambda/latest/dg/python-context.html
     """
@@ -14,6 +14,8 @@ def lambda_handler(event, context):
         return _get(event, context)
     elif event[HTTP_METHOD_STR] == POST_REQUEST_STR:
         return _post(event, context)
+    elif event[HTTP_METHOD_STR] == DELETE_REQUEST_STR:
+        return _delete(event, context)
     else:
         return error(ERROR_UNIMPLEMENTED_HTTP_REQUEST, event[HTTP_METHOD_STR])
 
@@ -62,6 +64,24 @@ def _post(event, context):
         return error(ERROR_UNKNOWN_EVENT_TYPE, POST_REQUEST_STR, event_type)
 
 
+def _delete(event, context):
+    """
+    Handler for a DELETE request
+    """
+    # Get the event type
+    all_good, event_type, body = _get_event_type_and_info(event, DELETE_REQUEST_STR)
+    if not all_good:
+        return event_type
+
+    # Creating an account
+    if event_type == EVENT_DELETE_ACCOUNT_STR:
+        return delete_account(body)
+
+    else:
+        # If the event type is unknown, show an error
+        return error(ERROR_UNKNOWN_EVENT_TYPE, POST_REQUEST_STR, event_type)
+
+
 def _get_event_type_and_info(event, http_method):
     """
     Returns a 3-tuple of (1) True if no error, False if error, (2) the event type if no error, the error if error, and
@@ -84,16 +104,17 @@ def _get_event_type_and_info(event, http_method):
 
     if http_method == GET_REQUEST_STR:
         info = event['queryStringParameters']
-    elif http_method == POST_REQUEST_STR:
+    elif http_method in [POST_REQUEST_STR, DELETE_REQUEST_STR]:
         info = _parse_url(event['body'])
     else:
-        raise ValueError("Error _get_event_type")
+        return False, error(ERROR_IMPOSSIBLE_ERROR, '_get_event_type, should not have implemented any other method'
+                                                    'in the api gateway yet... %s' % http_method), None
 
     # If no parameters are passed, just return this string for testing purposes
     if info is None:
         return False, {
             'statusCode': 200,
-            'body': json.dumps("Hello Wingit %s!" % http_method.upper())
+            'body': json.dumps("Hello Wingit %s!" % http_method)
         }, None
 
     # If there is no event type, show an error

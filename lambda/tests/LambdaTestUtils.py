@@ -4,10 +4,11 @@ Utility functions
 import requests
 import random
 import string
+import json
 import urllib.parse
 from lambda_code.lambda_function import lambda_handler
 from lambda_code.constants import MAX_USERNAME_SIZE, GET_REQUEST_STR, POST_REQUEST_STR, HTTP_METHOD_STR, \
-    PASSWORD_HASH_SIZE, HASH_CHARS
+    PASSWORD_HASH_SIZE, HASH_CHARS, DELETE_REQUEST_STR
 from BuildConstants import IMPLEMENTED_HTTP_METHODS
 
 _REQUEST_URL = "https://mvmb9qdwti.execute-api.us-west-1.amazonaws.com/WingitProduction/wingitresource"
@@ -38,8 +39,8 @@ def request(**params):
             response = requests.get(_REQUEST_URL, params=params).json()
         elif http_method == POST_REQUEST_STR:
             response = requests.post(_REQUEST_URL, data=params).json()
-        elif http_method == 'HEAD':
-            response = requests.head(_REQUEST_URL)
+        elif http_method == DELETE_REQUEST_STR:
+            response = requests.delete(_REQUEST_URL, data=params).json()
         else:
             raise ValueError("Unknown request type: %s, not in %s" % (http_method, IMPLEMENTED_HTTP_METHODS))
 
@@ -48,16 +49,14 @@ def request(**params):
         return response
     else:
         if http_method == GET_REQUEST_STR:
-            d = {HTTP_METHOD_STR: GET_REQUEST_STR, 'queryStringParameters': params}
-        elif http_method == POST_REQUEST_STR:
-            d = {HTTP_METHOD_STR: POST_REQUEST_STR, 'body': urllib.parse.urlencode(params)}
-        elif http_method == 'HEAD':
-            d = {HTTP_METHOD_STR: 'HEAD'}
+            d = {HTTP_METHOD_STR: http_method, 'queryStringParameters': params}
+        elif http_method in [POST_REQUEST_STR, DELETE_REQUEST_STR]:
+            d = {HTTP_METHOD_STR: http_method, 'body': urllib.parse.urlencode(params)}
         else:
             raise ValueError("Unknown request type: %s, not in %s" % (http_method, IMPLEMENTED_HTTP_METHODS))
 
         # The return body is a string (because json.dumps) so we must call eval on it
-        return eval(lambda_handler(d, None)['body'])
+        return json.loads(lambda_handler(d, None)['body'])
 
 
 def random_str(size, all_ascii=True):

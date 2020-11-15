@@ -5,6 +5,7 @@ from tests.LambdaTestUtils import *
 from lambda_code.errors import *
 from BuildConstants import *
 from lambda_code.s3_utils import *
+from lambda_code.utils import get_new_db_conn
 
 
 class TestLambda:
@@ -296,6 +297,93 @@ class TestLambda:
                   USERNAME_STR: TEST_ACCOUNT_VERIFIED_USERNAME, HTTP_METHOD_STR: GET_REQUEST_STR}
         self.assert_no_server_error(**params)
 
+    def test_account_deletion_fails(self):
+        """
+        Deleting a user's account
+        """
+        params = {
+            EVENT_TYPE_STR: EVENT_DELETE_ACCOUNT_STR,
+            USERNAME_STR: TEST_ACCOUNT_UNVERIFIED_USERNAME,
+            HTTP_METHOD_STR: DELETE_REQUEST_STR,
+            PASSWORD_HASH_STR: TEST_ACCOUNT_PASSWORD_HASH
+        }
+
+        self.assert_server_handles_invalid_inputs(**params)
+
+        # Invalid username
+        params[USERNAME_STR] = random_valid_username()
+        self.assert_server_error(ERROR_USERNAME_DOES_NOT_EXIST, **params)
+
+        # Invalid email
+        del params[USERNAME_STR]
+        params[EMAIL_STR] = random_valid_email()
+        self.assert_server_error(ERROR_EMAIL_DOES_NOT_EXIST, **params)
+
+        # Password and hash do not match
+        del params[EMAIL_STR]
+        params[USERNAME_STR] = TEST_ACCOUNT_UNVERIFIED_USERNAME
+        params[PASSWORD_HASH_STR] = random_valid_password_hash()
+        self.assert_server_error(ERROR_INCORRECT_PASSWORD, **params)
+
+    def testlast_create_delete_account(self):
+        """
+        Tests the ability to create and delete an account
+        """
+        username = random_valid_username()
+        password = b"ThiIsAnpassword!2  3"
+        password_hash = hashlib.sha256(password).hexdigest()
+        email = random_valid_email()
+        params = {
+            EVENT_TYPE_STR: EVENT_CREATE_ACCOUNT_STR,
+            USERNAME_STR: username,
+            EMAIL_STR: email,
+            PASSWORD_HASH_STR: password_hash,
+            HTTP_METHOD_STR: POST_REQUEST_STR,
+        }
+
+        # Create the account
+        self.assert_no_server_error(**params)
+
+        # Username and email should be all lower
+        username = username.lower()
+        email = email.lower()
+
+        _sql = "SELECT * FROM {0} WHERE {1} LIKE %s".format(USERS_TABLE_NAME, USERNAME_STR)
+
+        # Now check that it exists in the database
+        try:
+            conn = get_new_db_conn()
+            cursor = conn.cursor()
+            cursor.execute(_sql, username)
+            result = cursor.fetchone()
+        except Exception as e:
+            raise ValueError("SQL error in testlast_create_delete_account #1: %s" % repr(e))
+
+        self.assert_true(result[USERNAME_STR] == username,
+                         'Failure creating account in testlast_create_delete_account, result: %s, username: %s'
+                         % (result[USERNAME_STR], username))
+        self.assert_true(result[EMAIL_STR] == email,
+                         'Failure creating account in testlast_create_delete_account, result: %s, email: %s'
+                         % (result[EMAIL_STR], email))
+
+        # Now try and delete
+        del params[USERNAME_STR]
+        params[EVENT_TYPE_STR] = EVENT_DELETE_ACCOUNT_STR
+        params[HTTP_METHOD_STR] = DELETE_REQUEST_STR
+        self.assert_no_server_error(**params)
+
+        # Now check to make sure it no longer exists in the database
+        try:
+            conn = get_new_db_conn()
+            cursor = conn.cursor()
+            cursor.execute(_sql, username)
+            result = cursor.fetchone()
+        except Exception as e:
+            raise ValueError("SQL error in testlast_create_delete_account #2: %s" % repr(e))
+
+        self.assert_true(result is None,
+                         'Failure deleting account in testlast_create_delete_account, result: %s' % result)
+
     def test_s3_presigned_url(self):
         """
         Test get_s3_presigned_url for various reasons
@@ -325,12 +413,36 @@ class TestLambda:
             info.update({'error_tup': ERROR_UNKNOWN_EVENT_TYPE, EVENT_TYPE_STR: "uhfn01q7hrn0dfq9und-q"})
             self.assert_server_error(**info)
 
+        _sql = "SELECT * FROM {0} WHERE {1} LIKE %s".format(USERS_TABLE_NAME, USERNAME_STR)
+
+        # Check that the salt works
+        try:
+            conn = get_new_db_conn()
+            cursor = conn.cursor()
+            cursor.execute(_sql, TEST_ACCOUNT_VERIFIED_USERNAME)
+            result = cursor.fetchone()
+            ph1 = result[PASSWORD_HASH_STR][VERIFICATION_CODE_SIZE:]
+
+            cursor.execute(_sql, TEST_ACCOUNT_UNVERIFIED_USERNAME)
+            result = cursor.fetchone()
+            ph2 = result[PASSWORD_HASH_STR][VERIFICATION_CODE_SIZE:]
+        except Exception as e:
+            raise ValueError('Exception trying to get database: %s' % repr(e))
+        self.assert_true(ph1 != ph2, message="Password hashes match, salt doesn't work!")
+
     def test_all(self):
         """
-        Runs all methods in this test class that start with the string "test_"
+        Runs all methods in this test class that start with the string "test_", then all of the methods that start
+        with a "testlast_"
         """
         tests_run = 0
         for s in [s for s in dir(self) if s.startswith('test_') and s != 'test_all']:
+            print("Testing: %s()..." % s)
+            self.__getattribute__(s)()
+            tests_run += 1
+            print("Test Passed!")
+
+        for s in [s for s in dir(self) if s.startswith('testlast_')]:
             print("Testing: %s()..." % s)
             self.__getattribute__(s)()
             tests_run += 1

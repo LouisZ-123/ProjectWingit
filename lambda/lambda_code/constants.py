@@ -7,7 +7,7 @@ Most of these are just in case I change my mind on what I want things named
 import json
 
 # The link to the api
-API_LINK = "https://mvmb9qdwti.execute-api.us-west-1.amazonaws.com/WingitProduction/wingitresource"
+API_URL = "https://mvmb9qdwti.execute-api.us-west-1.amazonaws.com/WingitProduction/wingitresource"
 
 # The number of rounds to use with bcrypt salt, tried to keep time close to 1sec
 BCRYPT_ROUNDS = 14
@@ -21,13 +21,15 @@ EVENT_TYPE_STR = 'event_type'
 HTTP_METHOD_STR = 'httpMethod'
 GET_REQUEST_STR = 'GET'
 POST_REQUEST_STR = 'POST'
+DELETE_REQUEST_STR = 'DELETE'
 EVENT_CREATE_ACCOUNT_STR = 'create_account'
 EVENT_VERIFY_ACCOUNT_STR = 'verify_account'
+EVENT_DELETE_ACCOUNT_STR = 'delete_account'
 EVENT_LOGIN_STR = 'login'
 EVENT_GET_S3_URL_STR = 'get_s3'
 
 VERIFICATION_CODE_SIZE = 30  # The number of characters to use in the verification code
-VERIFICATION_LINK = "{0}?event_type=verify_account&username=%s&verification_code=%s".format(API_LINK)
+VERIFICATION_LINK = "{0}?event_type=verify_account&username=%s&verification_code=%s".format(API_URL)
 VERIFICATION_EMAIL_HEADER = "\From: %s\nTo: %s\nSubject: %s\n\n%s"
 VERIFICATION_EMAIL_SUBJECT = "Wingit Account Activation"
 
@@ -81,6 +83,8 @@ GET_WHERE_EMAIL_LIKE_SQL = "SELECT * FROM {0} WHERE {1} LIKE %s".format(USERS_TA
 # Update user verification code
 UPDATE_VERIFICATION_CODE_SQL = "UPDATE {0} SET {1} = '' WHERE {2} LIKE %s" \
     .format(USERS_TABLE_NAME, VERIFICATION_CODE_STR, USERNAME_STR)
+
+DELETE_ACCOUNT_SQL = "DELETE FROM {0} WHERE {1} LIKE %s".format(USERS_TABLE_NAME, USERNAME_STR)
 
 
 def return_message(good_message=None, data=None):

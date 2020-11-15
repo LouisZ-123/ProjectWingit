@@ -5,7 +5,7 @@ from lambda_code.utils import *
 from lambda_code.s3_utils import *
 
 
-def create_account(params):
+def create_account(body):
     """
     Attempt to create a new account.
     
@@ -15,9 +15,9 @@ def create_account(params):
     If the account can be created, an email will be sent to the specified email
         with a link to activate the account. A random string of alphanumeric
         characters will be made as a verification code
-    :param params: the parameters
+    :param body: the parameters
     """
-    all_good, *rest = get_cleaned_params(params, USERNAME_STR, EMAIL_STR, PASSWORD_HASH_STR)
+    all_good, *rest = get_cleaned_params(body, USERNAME_STR, EMAIL_STR, PASSWORD_HASH_STR)
     if not all_good:
         return rest[0]
     username, email, password_hash = rest
@@ -93,10 +93,13 @@ def verify_account(params):
         return error(ERROR_UNKNOWN_ERROR, repr(e))
 
 
-def login_account(params):
+def _verify_login_credentials(params, require_verified=True):
     """
-    Returns the string "Credentials Accepted" to affirm that the username/email
-    (defaults to email if both are given) match the given password_hash
+    Verifies the login credentials are correct.
+    :param params: could contain either email or username, along with password
+    :param require_verified: if True, return an error if the account is not yet verified
+    :return: a tuple with 1st element: False if there was an error, True if all good, 2nd element: the return
+        error if there was an error, or the username of the login (irregardless of if the user gave email or username)
     """
     username, email = None, None
 
@@ -107,15 +110,15 @@ def login_account(params):
     if not all_good:
 
         # Check if the error is with the email, not that it doesn't exist
-        if eval(rest[0]['body'])[RETURN_ERROR_CODE_STR] != ERROR_MISSING_PARAMS[2]:
-            return rest[0]
+        if json.loads(rest[0]['body'])[RETURN_ERROR_CODE_STR] != ERROR_MISSING_PARAMS[2]:
+            return False, rest[0]
 
         # Otherwise try and get a username
         all_good, *rest = get_cleaned_params(params, USERNAME_STR, PASSWORD_HASH_STR)
 
         # Didn't work either, return error
         if not all_good:
-            return rest[0]
+            return False, rest[0]
 
         # Otherwise, set username and password
         username, password_hash = rest
@@ -138,19 +141,51 @@ def login_account(params):
 
         # If the username/email does not exist
         if result is None:
-            return error(ERROR_EMAIL_DOES_NOT_EXIST, email) if email is not None else \
-                error(ERROR_USERNAME_DOES_NOT_EXIST, username)
+            return (False, error(ERROR_EMAIL_DOES_NOT_EXIST, email)) if email is not None else \
+                (False, error(ERROR_USERNAME_DOES_NOT_EXIST, username))
 
         # If the account has not yet been verified
-        if result[VERIFICATION_CODE_STR] != '':
-            return error(ERROR_ACCOUNT_UNVERIFIED)
+        if require_verified and result[VERIFICATION_CODE_STR] != '':
+            return False, error(ERROR_ACCOUNT_UNVERIFIED)
 
         # If the password_hash does not match, tell them
         if not password_correct(password_hash, result[PASSWORD_HASH_STR]):
-            return error(ERROR_INCORRECT_PASSWORD)
+            return False, error(ERROR_INCORRECT_PASSWORD)
 
-        return return_message(good_message='Credentials Accepted!')
+        return True, result[USERNAME_STR]
 
+    except Exception as e:
+        return False, error(ERROR_UNKNOWN_ERROR, repr(e))
+
+
+def login_account(params):
+    """
+    Returns the string "Credentials Accepted" to affirm that the username/email
+    (defaults to email if both are given) match the given password_hash
+    """
+    all_good, e = _verify_login_credentials(params)
+    if not all_good:
+        return e
+    return return_message(good_message='Credentials Accepted!')
+
+
+def delete_account(body):
+    """
+    Delete a user's account
+    """
+    # Attempt to login with the given credentials, and if it fails, return the login error
+    all_good, other = _verify_login_credentials(body, require_verified=False)
+    if not all_good:
+        return other
+    username = other
+
+    try:
+        conn = get_new_db_conn()
+        cursor = conn.cursor()
+        result = cursor.execute(DELETE_ACCOUNT_SQL, username)
+        conn.commit()
+
+        return return_message(good_message="Account Deleted!")
     except Exception as e:
         return error(ERROR_UNKNOWN_ERROR, repr(e))
 
@@ -160,15 +195,15 @@ def get_s3_permissions(params):
     Gets a presigned url for an s3 bucket so a user can upload a file
     """
     # Make sure we have correct params
-    all_good, *rest = get_cleaned_params(params, USERNAME_STR, PASSWORD_HASH_STR, S3_REASON_STR)
+    all_good, *rest = get_cleaned_params(params, PASSWORD_HASH_STR, S3_REASON_STR)
     if not all_good:
         return rest[0]
-    username, password_hash, reason = rest
+    password_hash, reason = rest
 
     # Attempt to login with the given credentials, and if it fails, return the login error
-    login_attempt = login_account(params)
-    if RETURN_ERROR_MESSAGE_STR in eval(login_attempt['body']).keys():
-        return login_attempt
+    all_good, username = _verify_login_credentials(params)
+    if not all_good:
+        return username
     
     # It worked, so now we need to build the extra info for the return message
     all_good, extra_s3_info = get_extra_s3_info(username, reason)
