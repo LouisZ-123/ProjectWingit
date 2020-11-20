@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+
+    <group android:checkableBehavior="single">
+
+        <item
+            android:id="@+id/hamburger_home"
+            android:icon="@drawable/ic_home"
+            android:title="Home" />
+
+        <item
+            android:id="@+id/hamburger_create_recipe"
+            android:icon="@drawable/ic_add"
+            android:title="Create Recipe" />
+
+        <item
+            android:id="@+id/hamburger_local_venues"
+            android:icon="@drawable/ic_local_venue"
+            android:title="Local Venues" />
+
+        <item
+            android:id="@+id/hamburger_account_options"
+            android:icon="@drawable/ic_account"
+            android:title="Account Options" />
+
+        <item
+            android:id="@+id/hamburger_settings"
+            android:icon="@drawable/ic_settings"
+            android:title="Settings"/>
+    </group>
+
+
+</menu>
