@@ -111,12 +111,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         switch (item.getItemId()) {
             case R.id.hamburger_home:
                 getSupportFragmentManager().beginTransaction().replace(R.id.container, new HomeFragment()).commit();
+                toolbar.setTitle(R.string.home_title_toolbar);
                 break;
             case R.id.hamburger_create_recipe:
                 getSupportFragmentManager().beginTransaction().replace(R.id.container, new CreateRecipe()).commit();
+                toolbar.setTitle(R.string.create_recipe_title_toolbar);
                 break;
             case R.id.hamburger_local_venues:
                 getSupportFragmentManager().beginTransaction().replace(R.id.container, new LocalVenues()).commit();
+                toolbar.setTitle(R.string.local_venues_title_toolbar);
                 break;
             case R.id.hamburger_account_options:
                 Intent intent = new Intent(this, UserAccount.class);
@@ -124,6 +127,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 break;
             case R.id.hamburger_settings:
                 getSupportFragmentManager().beginTransaction().replace(R.id.container, new Settings()).commit();fragment = new Settings();
+                toolbar.setTitle(R.string.settings_title_toolbar);
                 break;
         }
         dl.closeDrawer(GravityCompat.START);

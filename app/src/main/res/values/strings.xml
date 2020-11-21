@@ -8,6 +8,7 @@
     <string name="create_account">Create an account</string>
     <string name="login">Log in</string>
     <string name="characteristics">Recipe characteristics</string>
+    <string name="user_account_management_group_title">Account management</string>
     <string name="user_account_group_title">Edit Preferences</string>
 
 
@@ -22,6 +23,11 @@
     <string name="home_title_toolbar">WingIt</string>
     <string name="favorites_title_toolbar">Your favorite recipes!</string>
     <string name="search_title_toolbar">Search for recipes</string>
+    <string name="create_recipe_title_toolbar">Create recipe</string>
+    <string name="local_venues_title_toolbar">Local venues</string>
+    <string name="settings_title_toolbar">Settings</string>
+
+
 
 
 

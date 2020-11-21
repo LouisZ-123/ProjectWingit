@@ -3,18 +3,21 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:showIn="navigation_view">
 
-    <group>
+    <item android:title="@string/user_account_management_group_title">
+        <menu>
+            <item
+                android:id="@+id/user_account_create"
+                android:icon="@drawable/ic_create_account"
+                android:title="@string/create_account" />
 
-        <item
-            android:id="@+id/user_account_create"
-            android:icon="@drawable/ic_create_account"
-            android:title="@string/create_account" />
+            <item
+                android:id="@+id/user_account_login"
+                android:icon="@drawable/ic_login"
+                android:title="@string/login" />
 
-        <item
-            android:id="@+id/user_account_login"
-            android:icon="@drawable/ic_login"
-            android:title="@string/login" />
-    </group>
+        </menu>
+    </item>
+
 
     <item android:title="@string/user_account_group_title">
         <menu>
