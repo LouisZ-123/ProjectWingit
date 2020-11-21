@@ -16,6 +16,14 @@
     <string name="first_card_category">Recipe category</string>
     <string name="first_card_description">Recipe description goes here</string>
     <string name="save_to_favorites">Save to favorites</string>
+    <string name="remove_from_favorites">Remove from favorites</string>
+
+    <!--Strings for bottom navigation and toolbar title change -->
+    <string name="home_title_toolbar">WingIt</string>
+    <string name="favorites_title_toolbar">Your favorite recipes!</string>
+    <string name="search_title_toolbar">Search for recipes</string>
+
+
 
 
 

@@ -87,12 +87,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     switch (item.getItemId()) {
                         case R.id.home:
                             fragment = new HomeFragment();
+                            toolbar.setTitle(R.string.home_title_toolbar);
                             break;
                         case R.id.search:
                             fragment = new SearchFragment();
+                            toolbar.setTitle(R.string.search_title_toolbar);
                             break;
                         case R.id.favorites:
                             fragment = new FavoritesFragment();
+                            toolbar.setTitle(R.string.favorites_title_toolbar);
                             break;
                     }
                     getSupportFragmentManager().beginTransaction().replace(R.id.container, fragment).commit();
