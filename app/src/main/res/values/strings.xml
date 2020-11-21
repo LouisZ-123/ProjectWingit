@@ -11,4 +11,13 @@
     <string name="user_account_group_title">Edit Preferences</string>
 
 
+    <!--Strings for the card on home page -->
+    <string name="first_card_title">Recipe name</string>
+    <string name="first_card_category">Recipe category</string>
+    <string name="first_card_description">Recipe description goes here</string>
+    <string name="save_to_favorites">Save to favorites</string>
+
+
+
+
 </resources>
