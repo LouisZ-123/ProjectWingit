@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+
+    <group>
+
+        <item
+            android:id="@+id/user_account_create"
+            android:icon="@drawable/ic_create_account"
+            android:title="@string/create_account" />
+
+        <item
+            android:id="@+id/user_account_login"
+            android:icon="@drawable/ic_login"
+            android:title="@string/login" />
+    </group>
+
+    <item android:title="@string/user_account_group_title">
+        <menu>
+            <item
+                android:id="@+id/user_account_characteristics"
+                android:icon="@drawable/ic_characteristics"
+                android:title="@string/characteristics" />
+
+        </menu>
+    </item>
+
+</menu>
