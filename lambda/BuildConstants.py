@@ -66,40 +66,26 @@ JAVA_CONSTANTS_CLASS_NAME = "WingitLambdaConstants"
 JAVA_CONSTANTS_FILE_PATH = "../app/src/main/java/com/wingit/projectwingit/utils/%s.java" % JAVA_CONSTANTS_CLASS_NAME
 JAVA_PACKAGE_PATH = JAVA_CONSTANTS_FILE_DIR.replace('../app/src/main/java/', '').replace('/', '.')
 
-JAVA_CONSTANTS_FILE_DATA = """package %(package)s;
+
+def _gen_java_data(java_vars):
+    ret = """package %(package)s;
 
 /*
  * An automatically generated list of constants from the lambda API
  */
 
 public class %(classname)s {
-    public static final String API_URL = "%(API_URL)s";
-    public static final String RETURN_SUCCESS_STR = "%(RETURN_SUCCESS_STR)s";
-    public static final String RETURN_GOOD_MESSAGE_STR = "%(RETURN_GOOD_MESSAGE_STR)s";
-    public static final String RETURN_ERROR_MESSAGE_STR = "%(RETURN_ERROR_MESSAGE_STR)s";
-    public static final String RETURN_ERROR_CODE_STR = "%(RETURN_ERROR_CODE_STR)s";
-    public static final String EVENT_TYPE_STR = "%(EVENT_TYPE_STR)s";
-    public static final String EVENT_CREATE_ACCOUNT_STR = "%(EVENT_CREATE_ACCOUNT_STR)s";
-    public static final String EVENT_LOGIN_STR = "%(EVENT_LOGIN_STR)s";
-    public static final String PASSWORD_HASH_STR = "%(PASSWORD_HASH_STR)s";
-    public static final String USERNAME_STR = "%(USERNAME_STR)s";
-    public static final String EMAIL_STR = "%(EMAIL_STR)s";
-}
-""" % {
-    'package': JAVA_PACKAGE_PATH,
-    'classname': JAVA_CONSTANTS_CLASS_NAME,
-    'API_URL': API_URL,
-    'RETURN_SUCCESS_STR': RETURN_SUCCESS_STR,
-    'RETURN_GOOD_MESSAGE_STR': RETURN_GOOD_MESSAGE_STR,
-    'RETURN_ERROR_MESSAGE_STR': RETURN_ERROR_MESSAGE_STR,
-    'RETURN_ERROR_CODE_STR': RETURN_ERROR_CODE_STR,
-    'EVENT_TYPE_STR': EVENT_TYPE_STR,
-    'EVENT_CREATE_ACCOUNT_STR': EVENT_CREATE_ACCOUNT_STR,
-    'EVENT_LOGIN_STR': EVENT_LOGIN_STR,
-    'PASSWORD_HASH_STR': PASSWORD_HASH_STR,
-    'USERNAME_STR': USERNAME_STR,
-    'EMAIL_STR': EMAIL_STR,
-}
+""" % {'package': JAVA_PACKAGE_PATH, 'classname': JAVA_CONSTANTS_CLASS_NAME}
+
+    for v in java_vars:
+        ret += "    public static final String %s = \"%s\";\n" % (v, globals()[v])
+
+    return ret + "}"
+
+
+JAVA_CONSTANTS_FILE_DATA = _gen_java_data(["API_URL", "RETURN_INFO_STR", "RETURN_ERROR_MESSAGE_STR",
+                                           "RETURN_ERROR_CODE_STR", "EVENT_TYPE_STR", "EVENT_CREATE_ACCOUNT_STR",
+                                           "EVENT_LOGIN_STR", "PASSWORD_HASH_STR", "USERNAME_STR", "EMAIL_STR"])
 
 
 ###############

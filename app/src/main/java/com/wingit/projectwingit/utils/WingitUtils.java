@@ -31,4 +31,12 @@ public class WingitUtils {
         }
         return hexString.toString();
     }
+
+    /**
+     * Returns true if the user enters an acceptable password. As of now, we only check that the
+     * password is at least 8 characters long.
+     */
+    public boolean checkAcceptablePassword(String password){
+        return password.length() >= 8;
+    }
 }

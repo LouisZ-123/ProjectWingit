@@ -59,6 +59,10 @@ def _post(event, context):
     if event_type == EVENT_CREATE_ACCOUNT_STR:
         return create_account(body)
 
+    # Changing the password
+    elif event_type == EVENT_CHANGE_PASSWORD_STR:
+        return change_password(body)
+
     else:
         # If the event type is unknown, show an error
         return error(ERROR_UNKNOWN_EVENT_TYPE, POST_REQUEST_STR, event_type)
@@ -88,24 +92,10 @@ def _get_event_type_and_info(event, http_method):
     (3) the info if there was no error and None if there was
     """
 
-    def _parse_url(url_params):
-        """
-        Parses the input string into a dictionary
-        """
-        ret = {}
-        for substring in url_params.split('&'):
-            left, right = substring.split('=')
-            right = urllib.parse.unquote(right)
-            if left in ret:
-                ret[left] = [ret[left], right] if isinstance(ret[left], str) else ret[left] + [right]
-            else:
-                ret[left] = right
-        return ret
-
     if http_method == GET_REQUEST_STR:
         info = event['queryStringParameters']
     elif http_method in [POST_REQUEST_STR, DELETE_REQUEST_STR]:
-        info = _parse_url(event['body'])
+        info = _parse_content(event['body']) if event['body'].startswith('--') else _parse_url(event['body'])
     else:
         return False, error(ERROR_IMPOSSIBLE_ERROR, '_get_event_type, should not have implemented any other method'
                                                     'in the api gateway yet... %s' % http_method), None
@@ -123,3 +113,32 @@ def _get_event_type_and_info(event, http_method):
 
     # Get the event type
     return True, info[EVENT_TYPE_STR], info
+
+
+def _parse_url(url_params):
+    """
+    Parses the input string into a dictionary
+    """
+    ret = {}
+    for substring in url_params.split('&'):
+        left, right = substring.split('=')
+        right = urllib.parse.unquote(right)
+        if left in ret:
+            ret[left] = [ret[left], right] if isinstance(ret[left], str) else ret[left] + [right]
+        else:
+            ret[left] = right
+    return ret
+
+
+def _parse_content(content):
+    """
+    Parses the POST if it has content headers
+    """
+    lines = content.split('\n')
+
+    ret = {}
+    for i in range(len(lines)):
+        if lines[i].startswith("Content-Disposition"):
+            ret[lines[i].split('name="')[1][:-2]] = lines[i + 3][:-1]
+
+    return ret

@@ -12,8 +12,7 @@ API_URL = "https://mvmb9qdwti.execute-api.us-west-1.amazonaws.com/WingitProducti
 # The number of rounds to use with bcrypt salt, tried to keep time close to 1sec
 BCRYPT_ROUNDS = 14
 
-RETURN_SUCCESS_STR = 'success'  # For whether or not there was a success
-RETURN_GOOD_MESSAGE_STR = 'info'  # For when everything worked, this is the key for the message of goodness
+RETURN_INFO_STR = 'info'  # For when everything worked, this is the key for the message of goodness
 RETURN_ERROR_MESSAGE_STR = 'error_message'  # The error message
 RETURN_ERROR_CODE_STR = 'error_code'  # The error code
 
@@ -25,6 +24,7 @@ DELETE_REQUEST_STR = 'DELETE'
 EVENT_CREATE_ACCOUNT_STR = 'create_account'
 EVENT_VERIFY_ACCOUNT_STR = 'verify_account'
 EVENT_DELETE_ACCOUNT_STR = 'delete_account'
+EVENT_CHANGE_PASSWORD_STR = 'change_password'
 EVENT_LOGIN_STR = 'login'
 EVENT_GET_S3_URL_STR = 'get_s3'
 
@@ -66,6 +66,7 @@ RDS_DATABASE = "wingitdb"
 
 USERS_TABLE_NAME = 'USERS'  # The SQL table name for users
 PASSWORD_HASH_STR = 'password_hash'  # Password_hash name on database
+NEW_PASSWORD_HASH_STR = 'new_hash'
 USERNAME_STR = 'username'  # I think you get the point now
 VERIFICATION_CODE_STR = 'verification_code'
 EMAIL_STR = 'email'
@@ -75,6 +76,9 @@ S3_REASON_STR = 's3_reason'
 # Create the user account
 CREATE_ACCOUNT_SQL = "INSERT INTO {0} ({1}, {2}, {3}, {4}, {5}) VALUES (%s, %s, %s, %s, %s)" \
     .format(USERS_TABLE_NAME, USERNAME_STR, EMAIL_STR, VERIFICATION_CODE_STR, CREATION_TIME_STR, PASSWORD_HASH_STR)
+
+# Update a user's password
+UPDATE_PASSWORD_SQL = "UPDATE {0} SET {1}=%s WHERE {2} LIKE %s".format(USERS_TABLE_NAME, PASSWORD_HASH_STR, USERNAME_STR)
 
 # Get rows where [column] LIKE [value]
 GET_WHERE_USERNAME_LIKE_SQL = "SELECT * FROM {0} WHERE {1} LIKE %s".format(USERS_TABLE_NAME, USERNAME_STR)
@@ -98,7 +102,7 @@ def return_message(good_message=None, data=None):
     if data is None:
         data = {}
     if good_message is not None:
-        data[RETURN_GOOD_MESSAGE_STR] = good_message
+        data[RETURN_INFO_STR] = good_message
     return {
         'statusCode': 200,
         'body': json.dumps(data)

@@ -1,6 +1,5 @@
 package com.wingit.projectwingit;
 
-import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Build;
@@ -8,6 +7,9 @@ import android.os.Bundle;
 import android.widget.TextView;
 
 import com.wingit.projectwingit.debug.WingitLogging;
+import com.wingit.projectwingit.io.LambdaRequests;
+import com.wingit.projectwingit.io.LambdaResponse;
+import com.wingit.projectwingit.utils.WingitLambdaConstants;
 
 import static com.wingit.projectwingit.io.LambdaRequests.createAccount;
 import static com.wingit.projectwingit.utils.WingitUtils.hashPassword;
@@ -17,21 +19,21 @@ import static com.wingit.projectwingit.utils.WingitUtils.hashPassword;
  */
 public class WingitApp extends AppCompatActivity {
 
-    @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        final TextView edit =  (TextView) findViewById(R.id.testText);
+        final TextView textView = (TextView) findViewById(R.id.testText);
         String passwordHash = hashPassword("testPassword");
 
-        Runnable runnable = () -> {
-            edit.setText();
-        };
+        LambdaResponse response = LambdaRequests.createAccount("applefdgf", "adsagsa@b.com", passwordHash);
 
-        Thread thread = new Thread(runnable);
-        thread.start();
+        textView.post(new Runnable() {
+            public void run() {
+                textView.setText(response.getResponseInfo());
+            }
+        });
     }
 
 }

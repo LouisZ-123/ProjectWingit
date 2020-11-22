@@ -1,26 +1,14 @@
 package com.wingit.projectwingit.io;
-import android.os.Build;
 
-import androidx.annotation.RequiresApi;
-
-import com.wingit.projectwingit.io.LambdaResponse;
 import static com.wingit.projectwingit.utils.WingitLambdaConstants.*;
-import static com.wingit.projectwingit.debug.WingitErrors.ErrorSeverity.*;
-import com.wingit.projectwingit.debug.WingitErrors;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLConnection;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.Response;
 
 /**
  * Provides easy access to calling the Lambda API
@@ -34,7 +22,6 @@ public class LambdaRequests {
      * @param passwordHash the password needs to be hashed first before giving to this method
      * @return A LambdaResponse of the response
      */
-    @RequiresApi(api = Build.VERSION_CODES.N)
     public static LambdaResponse createAccount(String username, String email, String passwordHash){
         try{
             String[] params = {
@@ -46,16 +33,44 @@ public class LambdaRequests {
 
             return sendRequest("POST", params);
         }catch (IOException e){
-            WingitErrors.error("lambda-request", "Error sending request", WARNING, e);
+            return new LambdaResponse(LambdaResponse.ErrorState.CLIENT_ERROR,
+                    "Error sending createAccount request: " + e.getMessage());
         }
+    }
 
-        return LambdaResponse.CLIENT_ERROR;
+    /**
+     * Login to an account
+     * @param userOrEmail either the username or the email
+     * @param passwordHash the hash of the password
+     * @return
+     */
+    public static LambdaResponse login(String userOrEmail, String passwordHash){
+        try{
+            if (userOrEmail.contains("@")){
+                String[] params = {
+                        EMAIL_STR, userOrEmail,
+                        PASSWORD_HASH_STR, passwordHash,
+                        EVENT_TYPE_STR, EVENT_LOGIN_STR,
+                };
+                return sendRequest("GET", params);
+            }
+
+            String[] params = {
+                    USERNAME_STR, userOrEmail,
+                    PASSWORD_HASH_STR, passwordHash,
+                    EVENT_TYPE_STR, EVENT_LOGIN_STR,
+            };
+            return sendRequest("GET", params);
+
+        }catch (IOException e){
+            return new LambdaResponse(LambdaResponse.ErrorState.CLIENT_ERROR,
+                    "Error sending login request: " + e.getMessage());
+        }
     }
 
     /**
      * Send the prepared request and get back the response
      */
-    @RequiresApi(api = Build.VERSION_CODES.N)
     private static LambdaResponse sendRequest(String httpMethod, String[] params) throws IOException{
         OkHttpClient client = new OkHttpClient();
 
@@ -71,18 +86,16 @@ public class LambdaRequests {
                 request = new Request.Builder().url(buildGetUrl(params)).build();
                 break;
             default:
-                throw new IOException("Unknown httpMethod: " + httpMethod);
+                return new LambdaResponse(LambdaResponse.ErrorState.CLIENT_ERROR,
+                        "Error unknown http method: " + httpMethod);
         }
 
-
-        Response response = client.newCall(request).execute();
-        return new LambdaResponse(response.body().string());
+        return new LambdaResponse(client.newCall(request));
     }
 
     /**
      * Gets the url encoded args string as a byte[]
      */
-    @RequiresApi(api = Build.VERSION_CODES.N)
     private static String buildGetUrl(String[] params) throws UnsupportedEncodingException {
         StringBuilder ret = new StringBuilder();
         for(int i = 0; i < params.length; i+=2)

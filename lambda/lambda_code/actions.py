@@ -217,3 +217,29 @@ def get_s3_permissions(params):
                                              "get_extra_s3_info should have checked it)")
 
     return ret if not all_good else return_message(data=ret)
+
+
+def change_password(body):
+    """
+    Updates the user's password in the database.
+    """
+    # Make sure we have correct params
+    all_good, *rest = get_cleaned_params(body, PASSWORD_HASH_STR, NEW_PASSWORD_HASH_STR)
+    if not all_good:
+        return rest[0]
+    password_hash, new_hash = rest
+
+    # Attempt to login with the given credentials, and if it fails, return the login error
+    all_good, username = _verify_login_credentials(body)
+    if not all_good:
+        return username
+
+    try:
+        conn = get_new_db_conn()
+        cursor = conn.cursor()
+        result = cursor.execute(UPDATE_PASSWORD_SQL, username, gen_crypt(new_hash))
+        conn.commit()
+
+        return return_message(good_message="Account Deleted!")
+    except Exception as e:
+        return error(ERROR_UNKNOWN_ERROR, repr(e))
