@@ -19,6 +19,10 @@
     <string name="save_to_favorites">Save to favorites</string>
     <string name="remove_from_favorites">Remove from favorites</string>
 
+    <!--Strings for the recipe page -->
+    <string name="first_card_instruction">Instructions go here.</string>
+    <string name="rate_recipe">Rate Recipe</string>
+
     <!--Strings for bottom navigation and toolbar title change -->
     <string name="home_title_toolbar">WingIt</string>
     <string name="favorites_title_toolbar">Your favorite recipes!</string>
