@@ -28,6 +28,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private ActionBarDrawerToggle toggle;
     private NavigationView navigationView;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -124,10 +125,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             case R.id.hamburger_account_options:
                 Intent intent = new Intent(this, UserAccount.class);
                 startActivity(intent);
-                break;
-            case R.id.hamburger_settings:
-                getSupportFragmentManager().beginTransaction().replace(R.id.container, new Settings()).commit();fragment = new Settings();
-                toolbar.setTitle(R.string.settings_title_toolbar);
                 break;
         }
         dl.closeDrawer(GravityCompat.START);
