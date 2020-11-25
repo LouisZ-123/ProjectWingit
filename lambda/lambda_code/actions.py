@@ -17,10 +17,10 @@ def create_account(body):
         characters will be made as a verification code
     :param body: the parameters
     """
-    all_good, *rest = get_cleaned_params(body, USERNAME_STR, EMAIL_STR, PASSWORD_HASH_STR)
+    all_good, rest = get_cleaned_params(body, USERNAME_STR, EMAIL_STR, PASSWORD_HASH_STR)
     if not all_good:
-        return rest[0]
-    username, email, password_hash = rest
+        return rest
+    username, email, password_hash = rest[USERNAME_STR], rest[EMAIL_STR], rest[PASSWORD_HASH_STR]
 
     # All of this is dependant on the SQL database existing and the connection existing,
     #   so we will put it all in a try-catch since things can break easily
@@ -60,10 +60,10 @@ def verify_account(params):
     Verifies the given account (only needs username and verification_code)
     :param params: the params passed in the GET call
     """
-    all_good, *rest = get_cleaned_params(params, USERNAME_STR, VERIFICATION_CODE_STR)
+    all_good, rest = get_cleaned_params(params, USERNAME_STR, VERIFICATION_CODE_STR)
     if not all_good:
-        return rest[0]
-    username, verification_code = rest
+        return rest
+    username, verification_code = rest[USERNAME_STR], rest[VERIFICATION_CODE_STR]
 
     # Actually check to see if the verification code matches the database
     try:
@@ -101,31 +101,15 @@ def _verify_login_credentials(params, require_verified=True):
     :return: a tuple with 1st element: False if there was an error, True if all good, 2nd element: the return
         error if there was an error, or the username of the login (irregardless of if the user gave email or username)
     """
-    username, email = None, None
+    all_good, ret_dict = get_cleaned_params(params, (USERNAME_STR, EMAIL_STR), (PASSWORD_HASH_STR, PASSWORD_CHANGE_CODE_STR))
 
-    # Check for email and password
-    all_good, *rest = get_cleaned_params(params, EMAIL_STR, PASSWORD_HASH_STR)
-
-    # Didn't work, check for username and password
     if not all_good:
+        return False, ret_dict
 
-        # Check if the error is with the email, not that it doesn't exist
-        if json.loads(rest[0]['body'])[RETURN_ERROR_CODE_STR] != ERROR_MISSING_PARAMS[2]:
-            return False, rest[0]
-
-        # Otherwise try and get a username
-        all_good, *rest = get_cleaned_params(params, USERNAME_STR, PASSWORD_HASH_STR)
-
-        # Didn't work either, return error
-        if not all_good:
-            return False, rest[0]
-
-        # Otherwise, set username and password
-        username, password_hash = rest
-
-    # It did work, set email and password
-    else:
-        email, password_hash = rest
+    username = ret_dict[USERNAME_STR] if USERNAME_STR in ret_dict else None
+    email = ret_dict[EMAIL_STR] if EMAIL_STR in ret_dict else None
+    password_hash = ret_dict[PASSWORD_HASH_STR] if PASSWORD_HASH_STR in ret_dict else None
+    change_code = ret_dict[PASSWORD_CHANGE_CODE_STR] if PASSWORD_CHANGE_CODE_STR in ret_dict else None
 
     try:
         conn = get_new_db_conn()
@@ -149,8 +133,12 @@ def _verify_login_credentials(params, require_verified=True):
             return False, error(ERROR_ACCOUNT_UNVERIFIED)
 
         # If the password_hash does not match, tell them
-        if not password_correct(password_hash, result[PASSWORD_HASH_STR]):
+        if password_hash is not None and not password_correct(password_hash, result[PASSWORD_HASH_STR]):
             return False, error(ERROR_INCORRECT_PASSWORD)
+
+        elif change_code is not None and (change_code != result[PASSWORD_CHANGE_CODE_STR] or
+                                          current_time() - result[PASSWORD_CHANGE_CODE_CREATION_TIME_STR] > CHANGE_PASSWORD_TIMEOUT):
+            return False, error(ERROR_INVALID_PASSWORD_CHANGE_CODE)
 
         return True, result[USERNAME_STR]
 
@@ -174,15 +162,14 @@ def delete_account(body):
     Delete a user's account
     """
     # Attempt to login with the given credentials, and if it fails, return the login error
-    all_good, other = _verify_login_credentials(body, require_verified=False)
+    all_good, username = _verify_login_credentials(body, require_verified=False)
     if not all_good:
-        return other
-    username = other
+        return username
 
     try:
         conn = get_new_db_conn()
         cursor = conn.cursor()
-        result = cursor.execute(DELETE_ACCOUNT_SQL, username)
+        cursor.execute(DELETE_ACCOUNT_SQL, [username])
         conn.commit()
 
         return return_message(good_message="Account Deleted!")
@@ -195,10 +182,10 @@ def get_s3_permissions(params):
     Gets a presigned url for an s3 bucket so a user can upload a file
     """
     # Make sure we have correct params
-    all_good, *rest = get_cleaned_params(params, PASSWORD_HASH_STR, S3_REASON_STR)
+    all_good, rest = get_cleaned_params(params, PASSWORD_HASH_STR, S3_REASON_STR)
     if not all_good:
-        return rest[0]
-    password_hash, reason = rest
+        return rest
+    password_hash, reason = rest[PASSWORD_HASH_STR], rest[S3_REASON_STR]
 
     # Attempt to login with the given credentials, and if it fails, return the login error
     all_good, username = _verify_login_credentials(params)
@@ -224,22 +211,58 @@ def change_password(body):
     Updates the user's password in the database.
     """
     # Make sure we have correct params
-    all_good, *rest = get_cleaned_params(body, PASSWORD_HASH_STR, NEW_PASSWORD_HASH_STR)
+    all_good, rest = get_cleaned_params(body, NEW_PASSWORD_HASH_STR)
     if not all_good:
-        return rest[0]
-    password_hash, new_hash = rest
+        return rest
+
+    new_hash = rest[NEW_PASSWORD_HASH_STR]
 
     # Attempt to login with the given credentials, and if it fails, return the login error
-    all_good, username = _verify_login_credentials(body)
+    all_good, username = _verify_login_credentials(body, require_verified=False)
     if not all_good:
         return username
 
     try:
         conn = get_new_db_conn()
         cursor = conn.cursor()
-        result = cursor.execute(UPDATE_PASSWORD_SQL, username, gen_crypt(new_hash))
+        cursor.execute(UPDATE_PASSWORD_SQL, [gen_crypt(new_hash), username])
         conn.commit()
 
-        return return_message(good_message="Account Deleted!")
+        return return_message(good_message="Password changed!")
+    except Exception as e:
+        return error(ERROR_UNKNOWN_ERROR, repr(e))
+
+
+def get_password_change_code(params):
+    """
+    Sends a password change code to the username
+    """
+    all_good, ret_dict = get_cleaned_params(params, (USERNAME_STR, EMAIL_STR))
+    if not all_good:
+        return ret_dict
+    username = ret_dict[USERNAME_STR] if USERNAME_STR in ret_dict else None
+    email = ret_dict[EMAIL_STR] if EMAIL_STR in ret_dict else None
+
+    try:
+        conn = get_new_db_conn()
+        cursor = conn.cursor()
+
+        if username is not None:
+            cursor.execute(GET_WHERE_USERNAME_LIKE_SQL, [username])
+        else:
+            cursor.execute(GET_WHERE_EMAIL_LIKE_SQL, [email])
+
+        result = cursor.fetchone()
+
+        if result is None:
+            if username is not None:
+                return error(ERROR_USERNAME_DOES_NOT_EXIST, username)
+            return error(ERROR_EMAIL_DOES_NOT_EXIST, email)
+
+        code = random_password_change_code()
+        cursor.execute(UPDATE_PASSWORD_CHANGE_CODE_SQL.replace('%d', str(current_time())), [code, result[USERNAME_STR]])
+        conn.commit()
+
+        return send_password_change_code_email(username, result[EMAIL_STR], code)
     except Exception as e:
         return error(ERROR_UNKNOWN_ERROR, repr(e))

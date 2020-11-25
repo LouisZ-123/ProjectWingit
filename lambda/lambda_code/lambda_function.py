@@ -41,6 +41,10 @@ def _get(event, context):
     elif event_type == EVENT_GET_S3_URL_STR:
         return get_s3_permissions(params)
 
+    # Getting a password change code
+    elif event_type == EVENT_GET_PASSWORD_CHANGE_CODE_STR:
+        return get_password_change_code(params)
+
     else:
         # If the event type is unknown, show an error
         return error(ERROR_UNKNOWN_EVENT_TYPE, GET_REQUEST_STR, event_type)

@@ -25,13 +25,17 @@ EVENT_CREATE_ACCOUNT_STR = 'create_account'
 EVENT_VERIFY_ACCOUNT_STR = 'verify_account'
 EVENT_DELETE_ACCOUNT_STR = 'delete_account'
 EVENT_CHANGE_PASSWORD_STR = 'change_password'
+EVENT_GET_PASSWORD_CHANGE_CODE_STR = 'get_password_change_code'
 EVENT_LOGIN_STR = 'login'
 EVENT_GET_S3_URL_STR = 'get_s3'
 
 VERIFICATION_CODE_SIZE = 30  # The number of characters to use in the verification code
+PASSWORD_CHANGE_CODE_SIZE = 6  # Number of digits in the password change code
 VERIFICATION_LINK = "{0}?event_type=verify_account&username=%s&verification_code=%s".format(API_URL)
 VERIFICATION_EMAIL_HEADER = "\From: %s\nTo: %s\nSubject: %s\n\n%s"
 VERIFICATION_EMAIL_SUBJECT = "Wingit Account Activation"
+
+CHANGE_PASSWORD_TIMEOUT = 10*60*1000  # Timeout password change after 10 minutes
 
 # The prompt that is sent to the user to activate their account
 USER_ACTIVATION_PROMPT = """
@@ -42,6 +46,15 @@ Congratulations on creating your Wingit account! Endless chicken opportunties aw
 %s
 
 If you did not create this account, then what are you doing with your life?
+"""
+
+PASSWORD_CHANGE_EMAIL = """
+Hello, %s!
+
+If you recently requested a password change, your code is below:
+Password Change Code: %s
+
+If you did not request this code, simply disregard this email.
 """
 
 # Email/password for sending verification email
@@ -72,13 +85,19 @@ VERIFICATION_CODE_STR = 'verification_code'
 EMAIL_STR = 'email'
 CREATION_TIME_STR = 'creation_time'
 S3_REASON_STR = 's3_reason'
+PASSWORD_CHANGE_CODE_STR = 'password_change_code'
+PASSWORD_CHANGE_CODE_CREATION_TIME_STR = 'password_change_code_creation_time'
 
 # Create the user account
 CREATE_ACCOUNT_SQL = "INSERT INTO {0} ({1}, {2}, {3}, {4}, {5}) VALUES (%s, %s, %s, %s, %s)" \
     .format(USERS_TABLE_NAME, USERNAME_STR, EMAIL_STR, VERIFICATION_CODE_STR, CREATION_TIME_STR, PASSWORD_HASH_STR)
 
 # Update a user's password
-UPDATE_PASSWORD_SQL = "UPDATE {0} SET {1}=%s WHERE {2} LIKE %s".format(USERS_TABLE_NAME, PASSWORD_HASH_STR, USERNAME_STR)
+UPDATE_PASSWORD_SQL = "UPDATE {0} SET {1}=%s, {2}='' WHERE {3} LIKE %s".format(USERS_TABLE_NAME, PASSWORD_HASH_STR,
+                                                                               PASSWORD_CHANGE_CODE_STR, USERNAME_STR)
+
+UPDATE_PASSWORD_CHANGE_CODE_SQL = "UPDATE {0} SET {1}=%s, {2}=%d WHERE {3} LIKE %s".format(USERS_TABLE_NAME, PASSWORD_CHANGE_CODE_STR,
+                                                                                           PASSWORD_CHANGE_CODE_CREATION_TIME_STR, USERNAME_STR)
 
 # Get rows where [column] LIKE [value]
 GET_WHERE_USERNAME_LIKE_SQL = "SELECT * FROM {0} WHERE {1} LIKE %s".format(USERS_TABLE_NAME, USERNAME_STR)

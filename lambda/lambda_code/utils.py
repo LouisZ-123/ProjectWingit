@@ -72,6 +72,29 @@ def send_activation_email(username, email, verification_code):
         return error(ERROR_UNKNOWN_ERROR, repr(e))
 
 
+def send_password_change_code_email(username, email, code):
+    """
+    Sends the activation email/link to the given username and email
+    """
+    message = PASSWORD_CHANGE_EMAIL % (username, code)
+
+    # Set up the server and send the message
+    try:
+
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.ehlo()
+        server.starttls()
+        server.login(GMAIL_USER, GMAIL_PASSWORD)
+        server.sendmail(GMAIL_USER, email, message)
+        server.close()
+
+        # Return something saying everything went alright
+        return return_message(good_message='Password Change Email Sent!')
+
+    except Exception as e:
+        return error(ERROR_UNKNOWN_ERROR, repr(e))
+
+
 def fix_email(email):
     """
     Removes all periods before the '@' and changes to all lowercase to get unique email address
@@ -97,35 +120,70 @@ def get_cleaned_params(params, *str_list):
     :param params: the params
     :param str_list: the list of string params keys to get and clean
     """
-    ret = [True, ]
-    for _str in str_list:
+    found, vals, val_str_names = _get_str_in_params(list(str_list), params)
+    if not found:
+        return False, vals
 
-        # Check to make sure string is in params
+    clean_vals = []
+    for val, val_str_name in zip(vals, val_str_names):
+        all_good, val = _check_good_param(val, val_str_name)
+        if not all_good:
+            return False, val
+        clean_vals.append(val)
+
+    return True, dict(zip(val_str_names, clean_vals))
+
+
+def _get_str_in_params(_str, params):
+    """
+    If _str a tuple: call _get_str_in_params with all elements, and return good for first one that exists
+    if _str a list: call _get_str_in_params with all elements, assert all exists and return list
+    if _str a string: make sure _str exists in params, then return singleton list of element
+    """
+    if isinstance(_str, tuple):
+        for s in _str:
+            found, vals, val_str_names = _get_str_in_params(s, params)
+            if found:
+                return True, vals, val_str_names
+        return False, error(ERROR_MISSING_PARAMS, _str), None
+
+    elif isinstance(_str, list):
+        all_vals = []
+        all_val_str_names = []
+        for s in _str:
+            found, vals, val_str_names = _get_str_in_params(s, params)
+            if not found:
+                return False, error(ERROR_MISSING_PARAMS, s), None
+            all_vals += vals
+            all_val_str_names += val_str_names
+        return True, all_vals, all_val_str_names
+
+    else:
         if _str not in params:
-            return False, error(ERROR_MISSING_PARAMS, _str)
+            return False, error(ERROR_MISSING_PARAMS, _str), None
+        return True, [params[_str]], [_str]
 
-        val = str(params[_str])
 
-        # Clean if it needs cleaning, otherwise just add to the list
-        # Don't need to do anything special for password or verification code, so they're not listed
-        if _str == USERNAME_STR:
-            val = val.lower()
-            if not username_valid(val):
-                return False, error(ERROR_INVALID_USERNAME, val)
+def _check_good_param(val, val_str_name):
+    """
+    Check that passed values are good, and return error if not
+    """
+    if val_str_name == USERNAME_STR:
+        val = val.lower()
+        if not username_valid(val):
+            return False, error(ERROR_INVALID_USERNAME, val)
 
-        elif _str == EMAIL_STR:
-            val = fix_email(val)
-            if not validate_email(val):
-                return False, error(ERROR_INVALID_EMAIL, val)
+    elif val_str_name == EMAIL_STR:
+        val = fix_email(val)
+        if not validate_email(val):
+            return False, error(ERROR_INVALID_EMAIL, val)
 
-        elif _str == PASSWORD_HASH_STR:
-            val = val.lower()
-            if len(val) != PASSWORD_HASH_SIZE or not all(c in HASH_CHARS for c in val):
-                return False, error(ERROR_INVALID_PASSWORD_HASH)
+    elif val_str_name == PASSWORD_HASH_STR:
+        val = val.lower()
+        if len(val) != PASSWORD_HASH_SIZE or not all(c in HASH_CHARS for c in val):
+            return False, error(ERROR_INVALID_PASSWORD_HASH)
 
-        ret.append(val)
-
-    return tuple(ret)
+    return True, val
 
 
 def gen_crypt(password_hash):
@@ -151,3 +209,10 @@ def get_new_db_conn():
     """
     return pymysql.connect(RDS_ENDPOINT, user=RDS_USERNAME, passwd=RDS_PASSWORD, db=RDS_DATABASE,
                            cursorclass=pymysql.cursors.DictCursor)
+
+
+def random_password_change_code():
+    """
+    Returns a random code for the user to change their password
+    """
+    return ''.join([random.choice("0123456789") for i in range(PASSWORD_CHANGE_CODE_SIZE)])

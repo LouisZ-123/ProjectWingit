@@ -32,6 +32,7 @@ ERROR_INCORRECT_PASSWORD = (207, "Password incorrect", False)
 ERROR_EMAIL_DOES_NOT_EXIST = (208, "Email does not exist %s", True)
 ERROR_ACCOUNT_UNVERIFIED = (209, "Account has not yet been verified, check your email for verification link", False)
 ERROR_INVALID_PASSWORD_HASH = (210, "Invalid password hash", False)
+ERROR_INVALID_PASSWORD_CHANGE_CODE = (211, "Invalid password change code", False)
 
 # Error codes 300-399: errors involving s3 bucket access
 ERROR_UNKNOWN_S3_REASON = (300, "Unknown reason for accessing S3 bucket: %s", True)

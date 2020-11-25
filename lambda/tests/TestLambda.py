@@ -384,6 +384,118 @@ class TestLambda:
         self.assert_true(result is None,
                          'Failure deleting account in testlast_create_delete_account, result: %s' % result)
 
+    def testlast_change_password(self):
+        """
+        The ability to change one's password
+        """
+        params = {
+            EVENT_TYPE_STR: EVENT_CHANGE_PASSWORD_STR,
+            USERNAME_STR: TEST_ACCOUNT_VERIFIED_USERNAME,
+            HTTP_METHOD_STR: POST_REQUEST_STR,
+            PASSWORD_HASH_STR: TEST_ACCOUNT_PASSWORD_HASH,
+            NEW_PASSWORD_HASH_STR: random_valid_password_hash()
+        }
+
+        self.assert_server_handles_invalid_inputs(**params)
+
+        # Invalid username
+        params[USERNAME_STR] = random_valid_username()
+        self.assert_server_error(ERROR_USERNAME_DOES_NOT_EXIST, **params)
+
+        # Invalid email
+        del params[USERNAME_STR]
+        params[EMAIL_STR] = random_valid_email()
+        self.assert_server_error(ERROR_EMAIL_DOES_NOT_EXIST, **params)
+
+        # Password and hash do not match
+        del params[EMAIL_STR]
+        params[USERNAME_STR] = TEST_ACCOUNT_VERIFIED_USERNAME
+        params[PASSWORD_HASH_STR] = random_valid_password_hash()
+        self.assert_server_error(ERROR_INCORRECT_PASSWORD, **params)
+
+        # Actually works to change password
+        params[PASSWORD_HASH_STR] = TEST_ACCOUNT_PASSWORD_HASH
+        self.assert_no_server_error(**params)
+
+        # Check to make sure the password hash is correct in the database
+        conn = get_new_db_conn()
+        cursor = conn.cursor()
+        cursor.execute(GET_WHERE_USERNAME_LIKE_SQL, [params[USERNAME_STR]])
+
+        params = {
+            EVENT_TYPE_STR: EVENT_LOGIN_STR,
+            HTTP_METHOD_STR: GET_REQUEST_STR,
+            USERNAME_STR: TEST_ACCOUNT_VERIFIED_USERNAME,
+            PASSWORD_HASH_STR: params[NEW_PASSWORD_HASH_STR]
+        }
+        self.assert_no_server_error(**params)
+
+        self._change_password_without_knowing()
+
+    def _change_password_without_knowing(self):
+        # Try the updating of the password without knowing original password
+        params = {
+            EVENT_TYPE_STR: EVENT_GET_PASSWORD_CHANGE_CODE_STR,
+            USERNAME_STR: TEST_ACCOUNT_VERIFIED_USERNAME,
+            HTTP_METHOD_STR: GET_REQUEST_STR,
+        }
+
+        self.assert_server_handles_invalid_inputs(**params)
+
+        # Invalid username
+        params[USERNAME_STR] = random_valid_username()
+        self.assert_server_error(ERROR_USERNAME_DOES_NOT_EXIST, **params)
+
+        # Invalid email
+        del params[USERNAME_STR]
+        params[EMAIL_STR] = random_valid_email()
+        self.assert_server_error(ERROR_EMAIL_DOES_NOT_EXIST, **params)
+
+        # Send a good request for the code
+        params[USERNAME_STR] = TEST_ACCOUNT_VERIFIED_USERNAME
+        self.assert_no_server_error(**params)
+
+        # Make sure there is a valid code in the db
+        conn = get_new_db_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM {0} WHERE {1} LIKE %s".format(USERS_TABLE_NAME, USERNAME_STR),
+                       TEST_ACCOUNT_VERIFIED_USERNAME)
+        result = cursor.fetchone()
+        code = result[PASSWORD_CHANGE_CODE_STR]
+        self.assert_true(len(code) == PASSWORD_CHANGE_CODE_SIZE)
+
+        # Update the password knowing only the code
+        params = {
+            EVENT_TYPE_STR: EVENT_CHANGE_PASSWORD_STR,
+            USERNAME_STR: TEST_ACCOUNT_VERIFIED_USERNAME,
+            HTTP_METHOD_STR: POST_REQUEST_STR,
+            NEW_PASSWORD_HASH_STR: TEST_ACCOUNT_PASSWORD_HASH,
+            PASSWORD_CHANGE_CODE_STR: "0" * PASSWORD_CHANGE_CODE_SIZE
+        }
+
+        # Wrong code
+        self.assert_server_error(ERROR_INVALID_PASSWORD_CHANGE_CODE, **params)
+
+        # Actually change the password
+        params[PASSWORD_CHANGE_CODE_STR] = code
+        self.assert_no_server_error(**params)
+
+        # Check that the new password hash is the original, and the password change code is gone
+        conn = get_new_db_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM {0} WHERE {1} LIKE %s".format(USERS_TABLE_NAME, USERNAME_STR),
+                                TEST_ACCOUNT_VERIFIED_USERNAME)
+        result = cursor.fetchone()
+        self.assert_true(result[PASSWORD_CHANGE_CODE_STR] == '')
+
+        params = {
+            EVENT_TYPE_STR: EVENT_LOGIN_STR,
+            HTTP_METHOD_STR: GET_REQUEST_STR,
+            USERNAME_STR: TEST_ACCOUNT_VERIFIED_USERNAME,
+            PASSWORD_HASH_STR: TEST_ACCOUNT_PASSWORD_HASH
+        }
+        self.assert_no_server_error(**params)
+
     def test_s3_presigned_url(self):
         """
         Test get_s3_presigned_url for various reasons
@@ -406,7 +518,7 @@ class TestLambda:
         #   even if all other params are sent for a function
         for s in IMPLEMENTED_HTTP_METHODS:
             info = {'error_tup': ERROR_NO_EVENT_TYPE, USERNAME_STR: 'a', EMAIL_STR: 'a@b.c',
-                      HTTP_METHOD_STR: s}
+                    HTTP_METHOD_STR: s}
             self.assert_server_error(**info)
 
             # Error if an unknown event type is passed for both get and post
