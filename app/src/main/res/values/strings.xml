@@ -30,12 +30,10 @@
     <string name="create_recipe_title_toolbar">Create recipe</string>
     <string name="local_venues_title_toolbar">Local venues</string>
     <string name="settings_title_toolbar">Settings</string>
-
-
-
-
-
-
+    <string name="enter_ingredients">Enter Ingredients</string>
+    <string name="enter_recipe_name">Enter Recipe Name</string>
+    <string name="search_recipe_ingredients">Search Recipe Ingredients</string>
+    <string name="search_recipe_title">Search Recipe Title</string>
 
 
 </resources>

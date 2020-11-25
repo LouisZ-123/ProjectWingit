@@ -14,8 +14,6 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.View;
-import android.widget.Button;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigation.NavigationView;
@@ -91,7 +89,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                             toolbar.setTitle(R.string.home_title_toolbar);
                             break;
                         case R.id.search:
-                            fragment = new SearchFragment();
+                            fragment = new SearchFragment_Ingredients();
                             toolbar.setTitle(R.string.search_title_toolbar);
                             break;
                         case R.id.favorites:
