@@ -1,5 +1,6 @@
 package com.example.projectwingit;
 
+import android.app.Dialog;
 import android.os.Bundle;
 
 import androidx.fragment.app.Fragment;
@@ -7,6 +8,7 @@ import androidx.fragment.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -24,6 +26,8 @@ public class SearchFragment_Ingredients extends Fragment {
     private String mParam1;
     private String mParam2;
 
+    private Button searchRecipeTitle;
+
     public SearchFragment_Ingredients() {
         // Required empty public constructor
     }
@@ -34,7 +38,7 @@ public class SearchFragment_Ingredients extends Fragment {
      *
      * @param param1 Parameter 1.
      * @param param2 Parameter 2.
-     * @return A new instance of fragment SearchFragment.
+     * @return A new instance of fragment Settings.
      */
     // TODO: Rename and change types and number of parameters
     public static SearchFragment_Ingredients newInstance(String param1, String param2) {
@@ -58,7 +62,19 @@ public class SearchFragment_Ingredients extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+        View v = inflater.inflate(R.layout.fragment_search_ingredients, container, false);
+
+        // rating button characteristics
+        searchRecipeTitle = (Button) v.findViewById(R.id.search_recipe_title);
+        searchRecipeTitle.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                getFragmentManager().beginTransaction().replace(R.id.container, new SearchFragment_Title()).commit();
+            }
+        });
+
+
         // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_search_ingredients, container, false);
+        return v;
     }
 }
