@@ -4,8 +4,26 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:id="@+id/drawer_Acc"
     tools:context=".UserAccount">
 
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            >
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/container_user_account">
+
+
+        </FrameLayout>
+
+
+
+
+
+        </RelativeLayout>
 
         <com.google.android.material.navigation.NavigationView
             android:layout_width="match_parent"
@@ -13,9 +31,12 @@
             android:id="@+id/userAccountView"
             app:menu="@menu/user_account_items"
             app:headerLayout="@layout/user_account_header"
+            android:layout_gravity="start"
+            android:fitsSystemWindows="true"
+            android:layout_marginEnd="-65dp"
+            android:layout_marginRight="-65dp"
+
             >
-
         </com.google.android.material.navigation.NavigationView>
-
 
 </androidx.drawerlayout.widget.DrawerLayout>
