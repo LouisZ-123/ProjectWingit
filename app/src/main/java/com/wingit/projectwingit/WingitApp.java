@@ -27,7 +27,7 @@ public class WingitApp extends AppCompatActivity {
         final TextView textView = (TextView) findViewById(R.id.testText);
         String passwordHash = hashPassword("testPassword");
 
-        LambdaResponse response = LambdaRequests.createAccount("applefdgf", "adsagsa@b.com", passwordHash);
+        LambdaResponse response = LambdaRequests.createAccount("jsdahnijasdn", "addsfgasdgf@b.com", passwordHash);
 
         textView.post(new Runnable() {
             public void run() {
