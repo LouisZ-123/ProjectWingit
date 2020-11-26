@@ -15,7 +15,7 @@
         android:layout_width="wrap_content" android:layout_height="wrap_content"
         android:clickable="true"
         android:id="@+id/dialog_ratingbar" android:layout_gravity="center"
-        android:numStars="5" android:stepSize="1.0" android:rating="2"
+        android:numStars="5" android:stepSize="1.0" android:rating="0"
         android:isIndicator="false"/>
 
 
